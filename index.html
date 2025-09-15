@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Expense Tracker</title>
+  <title>Expense Tracker — Split with Roommates</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -22,6 +22,17 @@
   </header>
 
   <main class="container grid">
+    <!-- People manager -->
+    <section class="card">
+      <h2>People</h2>
+      <p class="muted small">Add everyone who shares expenses with you. These names power the “Who paid” and “Split with” options.</p>
+      <form id="people-form" class="people-form">
+        <input id="people-input" placeholder="Type a name (e.g., Ali) and press Add" />
+        <button class="btn btn-dark" type="submit">Add</button>
+      </form>
+      <div id="people-list" class="people-list muted small">No people yet — add at least one.</div>
+    </section>
+
     <!-- Add form -->
     <section class="card">
       <h2>Add Expense</h2>
@@ -34,16 +45,34 @@
           <span>Amount</span>
           <input id="amount" type="number" step="0.01" placeholder="e.g., 24.50" />
         </label>
-        <label class="form-field">
-          <span>Category</span>
-          <select id="category"></select>
-        </label>
+
         <label class="form-field">
           <span>Date</span>
           <input id="date" type="date" />
         </label>
+
+        <label class="form-field">
+          <span>Category</span>
+          <select id="category"></select>
+        </label>
+
+        <label class="form-field">
+          <span>Who paid</span>
+          <select id="payer"></select>
+        </label>
+
+        <div class="form-field">
+          <span>Split with</span>
+          <div id="split-with" class="split-grid"></div>
+          <div class="split-actions">
+            <button id="btn-select-all" class="link-btn" type="button">Select all</button>
+            <span class="bullet">•</span>
+            <button id="btn-clear-all" class="link-btn" type="button">Clear</button>
+          </div>
+        </div>
+
         <button class="btn btn-dark" type="submit">Add</button>
-        <button id="btn-clear-all" class="btn" type="button">Clear All</button>
+        <button id="btn-clear-entries" class="btn" type="button">Clear All</button>
       </form>
 
       <div class="tips">
@@ -52,6 +81,7 @@
           <li>Your data saves locally in your browser.</li>
           <li>Use Restore to import a previous backup.</li>
           <li>Click a row to edit it; the original is removed until you re-save.</li>
+          <li>By default, the amount is split equally among everyone you select (including the payer if selected).</li>
         </ul>
       </div>
     </section>
@@ -62,7 +92,7 @@
         <div class="filters">
           <label>
             <span>Search</span>
-            <input id="filter-text" placeholder="Find by text or category" />
+            <input id="filter-text" placeholder="Find by text or category/person" />
           </label>
           <label>
             <span>Month</span>
@@ -105,12 +135,14 @@
               <th>Date</th>
               <th>Description</th>
               <th>Category</th>
+              <th>Paid by</th>
+              <th>Split with</th>
               <th class="right">Amount</th>
               <th class="right">Actions</th>
             </tr>
           </thead>
           <tbody id="tbody-entries">
-            <tr><td colspan="5" class="empty">No items for this filter.</td></tr>
+            <tr><td colspan="7" class="empty">No items for this filter.</td></tr>
           </tbody>
         </table>
       </div>
@@ -119,6 +151,14 @@
         <h3>By Category</h3>
         <div id="cat-grid" class="cat-grid">
           <p class="muted">Nothing here yet.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Balances</h3>
+        <p class="muted small">Positive = this person is owed money. Negative = this person owes money. (For the selected month & search.)</p>
+        <div id="balances" class="balances-grid">
+          <p class="muted">Add people and expenses to see balances.</p>
         </div>
       </div>
     </section>
