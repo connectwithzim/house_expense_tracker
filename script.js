@@ -1,331 +1,377 @@
 (function () {
-  // --- Helpers ---
+  // Helpers
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-  const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const fmt = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const escapeCSV = (s) => {
+    const str = String(s ?? "");
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) return '"' + str.replace(/"/g, '""') + '"';
+    return str;
+  };
   const todayISO = () => {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 10);
   };
-  const escapeCSV = (s) => {
-    const str = String(s);
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-      return '"' + str.replace(/"/g, '""') + '"';
-    }
-    return str;
-  };
-  function formatNumber(n) {
-    const v = Number(n);
-    if (!Number.isFinite(v)) return '—';
-    return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  function escapeHTML(s) {
-    return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
 
-  // --- Categories ---
-  const categoriesPreset = [
-    "Food", "Transport", "Housing", "Utilities", "Health",
-    "Entertainment", "Education", "Shopping", "Travel", "Other"
-  ];
+  // Storage keys
+  const K_TX = "gx.transactions.v1";
+  const K_PEOPLE = "gx.people.v1";
 
-  // --- Storage Keys ---
-  const STORAGE_ENTRIES = "expense.entries.v2"; // bump to v2 to include payer/split
-  const STORAGE_PEOPLE = "expense.people.v1";
+  // State
+  let TX = load(K_TX) || [];     // unified transactions: type: 'expense' or 'payment'
+  let PEOPLE = load(K_PEOPLE) || [];
 
-  // --- State ---
-  let entries = loadEntries();
-  let people = loadPeople();
+  // Elements
+  const tabs = $$('.tab');
+  const panels = $$('.panel');
 
-  // --- DOM refs ---
-  const descInput = $("#desc");
-  const amountInput = $("#amount");
-  const categorySelect = $("#category");
-  const dateInput = $("#date");
-  const payerSelect = $("#payer");
-  const splitWithBox = $("#split-with");
-
-  const addForm = $("#add-form");
-  const clearEntriesBtn = $("#btn-clear-entries");
-
-  const filterTextInput = $("#filter-text");
-  const filterMonthInput = $("#filter-month");
-  const sortBySelect = $("#sort-by");
-
-  const sumTotal = $("#sum-total");
-  const sumMonth = $("#sum-month");
-  const sumCount = $("#sum-count");
-  const sumTopCat = $("#sum-topcat");
-
-  const tbody = $("#tbody-entries");
-  const catGrid = $("#cat-grid");
-  const balancesGrid = $("#balances");
-
-  const btnExportCSV = $("#btn-export-csv");
-  const btnBackupJSON = $("#btn-backup-json");
-  const inputRestoreJSON = $("#input-restore-json");
-
+  // People manager
   const peopleForm = $("#people-form");
   const peopleInput = $("#people-input");
   const peopleList = $("#people-list");
+
+  // Add expense
+  const amountInput = $("#amount");
+  const payerSelect = $("#payer");
+  const descInput = $("#desc");
+  const dateInput = $("#date");
+  const splitWithBox = $("#split-with");
   const btnSelectAll = $("#btn-select-all");
   const btnClearAll = $("#btn-clear-all");
+  const addForm = $("#add-form");
+  const btnClearEntries = $("#btn-clear-entries");
 
-  // --- Init ---
-  fillCategories();
+  // Pay back
+  const payForm = $("#pay-form");
+  const payAmount = $("#pay-amount");
+  const payFrom = $("#pay-from");
+  const payTo = $("#pay-to");
+  const payDesc = $("#pay-desc");
+  const payDate = $("#pay-date");
+
+  // History
+  const filterText = $("#filter-text");
+  const filterMonth = $("#filter-month");
+  const sortBy = $("#sort-by");
+  const tbodyHistory = $("#tbody-history");
+  const btnCSV = $("#btn-export-csv");
+  const btnBackup = $("#btn-backup-json");
+  const inputRestore = $("#input-restore-json");
+
+  // Balances views
+  const balancesAdd = $("#balances-add-view");
+  const balancesPay = $("#balances-pay-view");
+  const balancesHist = $("#balances-history-view");
+
+  // Footer clear
+  const btnHardClear = $("#btn-hard-clear");
+
+  // Init
   dateInput.value = todayISO();
-  filterMonthInput.value = todayISO().slice(0, 7);
-  renderPeopleUI();
-  render();
+  payDate.value = todayISO();
+  filterMonth.value = todayISO().slice(0, 7);
 
-  // --- Event listeners ---
+  renderPeopleUI();
+  renderEverywhere();
+
+  // Tab logic
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabs.forEach(b => b.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const id = btn.dataset.tab;
+      $("#panel-" + id).classList.add('active');
+      renderEverywhere();
+    });
+  });
+
+  // People
   peopleForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const name = (peopleInput.value || "").trim();
     if (!name) return;
-    if (people.includes(name)) {
-      alert("That name already exists.");
-      return;
-    }
-    people.push(name);
-    savePeople();
+    if (PEOPLE.includes(name)) return alert("That name already exists.");
+    PEOPLE.push(name);
+    save(K_PEOPLE, PEOPLE);
     peopleInput.value = "";
     renderPeopleUI();
-    render(); // refresh tables if needed
+    renderEverywhere();
   });
 
-  btnSelectAll?.addEventListener("click", () => {
+  // Quick select/clear for split
+  btnSelectAll.addEventListener("click", () => {
     $$("#split-with input[type=checkbox]").forEach(cb => cb.checked = true);
   });
-  btnClearAll?.addEventListener("click", () => {
+  btnClearAll.addEventListener("click", () => {
     $$("#split-with input[type=checkbox]").forEach(cb => cb.checked = false);
   });
 
+  // Add expense
   addForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    const desc = (descInput.value || "").trim();
     const amount = Number(amountInput.value);
-    const category = categorySelect.value;
-    const date = dateInput.value;
     const payer = payerSelect.value;
-    const splitWith = $$("#split-with input[type=checkbox]")
-      .filter(cb => cb.checked)
-      .map(cb => cb.value);
+    const desc = (descInput.value || "").trim();
+    const date = dateInput.value || todayISO();
+    const splitWith = $$("#split-with input[type=checkbox]").filter(cb => cb.checked).map(cb => cb.value);
 
-    if (!desc) return alert("Please add a description.");
-    if (!Number.isFinite(amount) || amount <= 0) return alert("Amount must be a positive number.");
-    if (!date) return alert("Please select a date.");
-    if (!people.length) return alert("Add at least one person in People.");
-    if (!payer) return alert("Select who paid.");
-    if (splitWith.length === 0) return alert("Select at least one person to split with.");
+    if (!Number.isFinite(amount) || amount <= 0) return alert("Enter a valid amount.");
+    if (!payer) return alert("Choose who paid.");
+    if (splitWith.length === 0) return alert("Pick at least one person to split with.");
+    const t = { id: rid(), type: "expense", amount, desc, date, payer, splitWith };
+    TX = [t, ...TX];
+    save(K_TX, TX);
 
-    const newEntry = { id: cryptoRandomId(), desc, amount, category, date, payer, splitWith };
-    entries = [newEntry, ...entries];
-    saveEntries();
-
-    // reset
-    descInput.value = "";
     amountInput.value = "";
-    categorySelect.value = categoriesPreset[0];
+    descInput.value = "";
     dateInput.value = todayISO();
-    payerSelect.value = people[0] || "";
-    // default: check all again
+    // default: check all
     $$("#split-with input[type=checkbox]").forEach(cb => cb.checked = true);
 
-    render();
+    renderEverywhere();
   });
 
-  clearEntriesBtn.addEventListener("click", () => {
-    if (confirm("Delete all entries?")) {
-      entries = [];
-      saveEntries();
-      render();
-    }
+  // Record payment
+  payForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const amount = Number(payAmount.value);
+    const from = payFrom.value;
+    const to = payTo.value;
+    const desc = (payDesc.value || "").trim();
+    const date = payDate.value || todayISO();
+    if (!Number.isFinite(amount) || amount <= 0) return alert("Enter a valid amount.");
+    if (!from || !to) return alert("Pick the people involved.");
+    if (from === to) return alert("From and To must be different.");
+    const t = { id: rid(), type: "payment", amount, desc, date, from, to };
+    TX = [t, ...TX];
+    save(K_TX, TX);
+
+    payAmount.value = "";
+    payDesc.value = "";
+    payDate.value = todayISO();
+    renderEverywhere();
   });
 
-  filterTextInput.addEventListener("input", render);
-  filterMonthInput.addEventListener("input", render);
-  sortBySelect.addEventListener("change", render);
+  // History controls
+  filterText.addEventListener("input", renderHistory);
+  filterMonth.addEventListener("input", renderAllBalancesAndHistory);
+  sortBy.addEventListener("change", renderHistory);
 
-  btnExportCSV.addEventListener("click", () => {
-    const filtered = getFiltered();
-    const header = ["Date", "Description", "Category", "Amount", "Payer", "SplitWith"];
-    const rows = filtered.map(e => [
-      e.date,
-      escapeCSV(e.desc),
-      escapeCSV(e.category),
-      e.amount,
-      escapeCSV(e.payer || ""),
-      escapeCSV((e.splitWith || []).join("|")),
-    ]);
-    const csv = [header, ...rows].map(r => r.join(",")).join("\n");
-    downloadBlob(new Blob([csv], { type: "text/csv" }), `expenses_${filterMonthInput.value || "all"}.csv`);
+  btnCSV.addEventListener("click", () => {
+    const list = filteredTX();
+    const header = ["Date","Type","Description","Amount","From","To/Split"];
+    const rows = list.map(t => {
+      if (t.type === "expense") {
+        return [t.date, "Expense", t.desc || "", t.amount, t.payer, (t.splitWith || []).join("|")];
+      } else {
+        return [t.date, "Payment", t.desc || "", t.amount, t.from, t.to];
+      }
+    });
+    const csv = [header, ...rows].map(r => r.map(escapeCSV).join(",")).join("\n");
+    download("transactions.csv", new Blob([csv], { type: "text/csv" }));
   });
 
-  btnBackupJSON.addEventListener("click", () => {
-    const payload = JSON.stringify(entries, null, 2);
-    downloadBlob(new Blob([payload], { type: "application/json" }), "expenses_backup.json");
+  btnBackup.addEventListener("click", () => {
+    download("transactions_backup.json", new Blob([JSON.stringify(TX, null, 2)], { type: "application/json" }));
   });
 
-  inputRestoreJSON.addEventListener("change", (e) => {
-    const file = e.target.files && e.target.files[0];
+  inputRestore.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(reader.result);
-        if (!Array.isArray(parsed)) throw new Error("Invalid file");
-        const cleaned = parsed
-          .filter((e) => e && e.desc && e.amount && e.date && e.category)
-          .map((e) => ({
-            id: e.id || cryptoRandomId(),
-            desc: String(e.desc),
-            amount: Number(e.amount),
-            category: String(e.category),
-            date: String(e.date).slice(0, 10),
-            payer: e.payer ? String(e.payer) : "", // optional for old backups
-            splitWith: Array.isArray(e.splitWith) ? e.splitWith.map(String) : [],
-          }));
-        entries = [...cleaned, ...entries];
-        saveEntries();
-        render();
-      } catch (err) {
+        const arr = JSON.parse(reader.result);
+        if (!Array.isArray(arr)) throw new Error("Invalid");
+        // Basic sanitize
+        const cleaned = arr.map((t) => ({
+          id: t.id || rid(),
+          type: t.type === "payment" ? "payment" : "expense",
+          amount: Number(t.amount) || 0,
+          desc: String(t.desc || ""),
+          date: String(t.date || todayISO()).slice(0, 10),
+          payer: t.payer || undefined,
+          splitWith: Array.isArray(t.splitWith) ? t.splitWith.map(String) : undefined,
+          from: t.from || undefined,
+          to: t.to || undefined,
+        }));
+        TX = [...cleaned, ...TX];
+        save(K_TX, TX);
+        renderEverywhere();
+      } catch {
         alert("Couldn't import that file.");
       }
     };
     reader.readAsText(file);
-    // Reset input so selecting the same file again triggers change
     e.target.value = "";
   });
 
-  // --- Functions ---
+  // Hard clear
+  btnClearEntries.addEventListener("click", () => {
+    if (!confirm("Delete ALL transactions?")) return;
+    TX = [];
+    save(K_TX, TX);
+    renderEverywhere();
+  });
+  btnHardClear.addEventListener("click", () => {
+    if (!confirm("Delete ALL people and transactions?")) return;
+    TX = [];
+    PEOPLE = [];
+    save(K_TX, TX);
+    save(K_PEOPLE, PEOPLE);
+    renderPeopleUI();
+    renderEverywhere();
+  });
+
+  // Rendering
   function renderPeopleUI() {
     // chips
-    if (!people.length) {
+    if (!PEOPLE.length) {
       peopleList.className = "people-list muted small";
       peopleList.textContent = "No people yet — add at least one.";
     } else {
       peopleList.className = "people-list";
       peopleList.innerHTML = "";
-      people.forEach(name => {
+      PEOPLE.forEach(name => {
         const chip = document.createElement("div");
         chip.className = "person-chip";
-        chip.innerHTML = `<span>${escapeHTML(name)}</span>`;
-        const btn = document.createElement("button");
-        btn.title = "Remove";
-        btn.innerHTML = "✕";
+        chip.innerHTML = `<span>${esc(name)}</span>`;
+        const btn = document.createElement("button"); btn.title = "Remove"; btn.textContent = "✕";
         btn.addEventListener("click", () => {
           if (!confirm(`Remove ${name}?`)) return;
-          people = people.filter(p => p !== name);
-          savePeople();
+          PEOPLE = PEOPLE.filter(p => p !== name);
+          save(K_PEOPLE, PEOPLE);
           renderPeopleUI();
-          render();
+          renderEverywhere();
         });
         chip.appendChild(btn);
         peopleList.appendChild(chip);
       });
     }
-
-    // payer select
-    payerSelect.innerHTML = "";
-    people.forEach(name => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      payerSelect.appendChild(opt);
+    // selects
+    [payerSelect, payFrom, payTo].forEach(sel => { sel.innerHTML = ""; });
+    PEOPLE.forEach(name => {
+      [payerSelect, payFrom, payTo].forEach(sel => {
+        const opt = document.createElement("option");
+        opt.value = name; opt.textContent = name; sel.appendChild(opt);
+      });
     });
-    payerSelect.value = people[0] || "";
-
     // split checkboxes
     splitWithBox.innerHTML = "";
-    if (!people.length) {
+    if (!PEOPLE.length) {
       splitWithBox.innerHTML = `<p class="muted small">Add people first.</p>`;
     } else {
-      people.forEach(name => {
-        const id = "split_" + name.replace(/\s+/g, "_");
+      PEOPLE.forEach(name => {
+        const id = "p_" + name.replace(/\s+/g, "_");
         const label = document.createElement("label");
         label.className = "split-item";
-        label.innerHTML = `<input id="${id}" type="checkbox" value="${escapeHTML(name)}"> <span>${escapeHTML(name)}</span>`;
+        label.innerHTML = `<input id="${id}" type="checkbox" value="${esc(name)}"> <span>${esc(name)}</span>`;
         splitWithBox.appendChild(label);
       });
-      // default: check all
       $$("#split-with input[type=checkbox]").forEach(cb => cb.checked = true);
     }
   }
 
-  function fillCategories() {
-    categorySelect.innerHTML = "";
-    categoriesPreset.forEach((c) => {
-      const opt = document.createElement("option");
-      opt.value = c;
-      opt.textContent = c;
-      categorySelect.appendChild(opt);
+  function renderEverywhere() {
+    renderAllBalancesAndHistory();
+  }
+
+  function renderAllBalancesAndHistory() {
+    // History and balances depend on filters
+    renderHistory();
+    renderBalances(balancesAdd);
+    renderBalances(balancesPay);
+    renderBalances(balancesHist);
+  }
+
+  function renderHistory() {
+    const list = filteredTX();
+    tbodyHistory.innerHTML = "";
+    if (!list.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="7" class="empty">No transactions yet.</td>`;
+      tbodyHistory.appendChild(tr);
+      return;
+    }
+    list.forEach(t => {
+      const tr = document.createElement("tr");
+      if (t.type === "expense") {
+        tr.innerHTML = `
+          <td>${t.date}</td>
+          <td><span class="stat-neg">Expense</span></td>
+          <td>${esc(t.desc || "")}</td>
+          <td class="right">${fmt(t.amount)}</td>
+          <td>${esc(t.payer)}</td>
+          <td>${(t.splitWith || []).map(esc).join(", ")}</td>
+          <td class="right"><button class="btn danger btn-sm">Delete</button></td>
+        `;
+      } else {
+        tr.innerHTML = `
+          <td>${t.date}</td>
+          <td><span class="stat-pos">Payment</span></td>
+          <td>${esc(t.desc || "")}</td>
+          <td class="right">${fmt(t.amount)}</td>
+          <td>${esc(t.from)}</td>
+          <td>${esc(t.to)}</td>
+          <td class="right"><button class="btn danger btn-sm">Delete</button></td>
+        `;
+      }
+      tr.querySelector(".btn-sm").addEventListener("click", () => {
+        if (!confirm("Delete this transaction?")) return;
+        TX = TX.filter(x => x.id !== t.id);
+        save(K_TX, TX);
+        renderEverywhere();
+      });
+      tbodyHistory.appendChild(tr);
     });
   }
 
-  function loadEntries() {
-    // Try v2; if empty, migrate from v1
-    try {
-      const raw2 = localStorage.getItem(STORAGE_ENTRIES);
-      if (raw2) return JSON.parse(raw2);
-    } catch {}
-    try {
-      const raw1 = localStorage.getItem("expense.entries.v1");
-      if (raw1) return JSON.parse(raw1).map(e => ({ ...e, payer: "", splitWith: [] }));
-    } catch {}
-    return [];
+  // Balances
+  function renderBalances(container) {
+    const list = filteredTX();
+    const pairwise = computePairwiseDebts(list); // owes[a][b]
+    const names = [...new Set(PEOPLE)];
+    container.innerHTML = "";
+    if (!names.length) {
+      container.innerHTML = `<p class="muted">Add people to see balances.</p>`;
+      return;
+    }
+    names.forEach(name => {
+      const card = document.createElement("div");
+      card.className = "person-card";
+      const owesMe = names.filter(other => other !== name && (pairwise[other]?.[name] || 0) > 0);
+      const iOwe = names.filter(other => other !== name && (pairwise[name]?.[other] || 0) > 0);
+      const listOwesMe = owesMe.map(other => `<li><a>${esc(other)}</a> owes me: <strong class="stat-pos">${fmt(pairwise[other][name])}</strong></li>`).join("") || `<li class="muted">No one owes ${esc(name)}.</li>`;
+      const listIOwe = iOwe.map(other => `<li>I owe <a>${esc(other)}</a>: <strong class="stat-neg">${fmt(pairwise[name][other])}</strong></li>`).join("") || `<li class="muted">${esc(name)} owes no one.</li>`;
+      card.innerHTML = `<h3>${esc(name)}</h3><ul>${listOwesMe}${listIOwe}</ul>`;
+      container.appendChild(card);
+    });
   }
 
-  function saveEntries() {
-    try {
-      localStorage.setItem(STORAGE_ENTRIES, JSON.stringify(entries));
-    } catch {}
-  }
-
-  function loadPeople() {
-    try {
-      const raw = localStorage.getItem(STORAGE_PEOPLE);
-      const arr = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(arr)) return arr.map(String).filter(Boolean);
-      return [];
-    } catch { return []; }
-  }
-  function savePeople() {
-    try {
-      localStorage.setItem(STORAGE_PEOPLE, JSON.stringify(people));
-    } catch {}
-  }
-
-  function getFiltered() {
-    const text = (filterTextInput.value || "").toLowerCase();
-    const yymm = filterMonthInput.value;
-    let monthStart, monthEnd;
+  function filteredTX() {
+    const txt = (filterText.value || "").toLowerCase();
+    const yymm = filterMonth.value;
+    let start, end;
     if (yymm && /^\d{4}-\d{2}$/.test(yymm)) {
       const [y, m] = yymm.split("-").map(Number);
-      monthStart = new Date(y, m - 1, 1);
-      monthEnd = new Date(y, m, 0);
+      start = new Date(y, m - 1, 1);
+      end = new Date(y, m, 0, 23, 59, 59);
     }
-
-    const filtered = entries.filter(e => {
-      const inText = (e.desc + " " + e.category + " " + (e.payer || "") + " " + (e.splitWith || []).join(" "))
-        .toLowerCase().includes(text);
+    let list = TX.filter(t => {
+      let inText = (t.desc || "") + " " + (t.type === "expense" ? (t.payer + " " + (t.splitWith || []).join(" ")) : (t.from + " " + t.to));
+      inText = inText.toLowerCase().includes(txt);
       let inMonth = true;
-      if (monthStart && monthEnd) {
-        const d = new Date(e.date);
-        inMonth = (d >= monthStart && d <= monthEnd);
+      if (start && end) {
+        const d = new Date(t.date);
+        inMonth = d >= start && d <= end;
       }
       return inText && inMonth;
     });
-
-    const sort = sortBySelect.value;
-    filtered.sort((a, b) => {
-      switch (sort) {
+    // sort
+    list.sort((a, b) => {
+      switch (sortBy.value) {
         case "amount-asc": return a.amount - b.amount;
         case "amount-desc": return b.amount - a.amount;
         case "date-asc": return new Date(a.date) - new Date(b.date);
@@ -333,154 +379,67 @@
         default: return new Date(b.date) - new Date(a.date);
       }
     });
-
-    return filtered;
+    return list;
   }
 
-  function computeTotals(list) {
-    const total = list.reduce((s, e) => s + Number(e.amount || 0), 0);
-    const byCategory = {};
-    list.forEach(e => {
-      byCategory[e.category] = (byCategory[e.category] || 0) + Number(e.amount || 0);
-    });
-    return { total, byCategory };
-  }
-
-  // Balances: positive = person is owed, negative = person owes.
-  function computeBalances(list) {
-    const ledger = {};
-    list.forEach(e => {
-      const A = Number(e.amount || 0);
-      const participants = Array.isArray(e.splitWith) ? e.splitWith : [];
-      const payer = e.payer || "";
-      const n = participants.length || 0;
-      if (!A || !n || !payer) return;
-      const share = A / n;
-      // Everyone in participants owes their share
-      participants.forEach(p => {
-        ledger[p] = (ledger[p] || 0) - share;
-      });
-      // Payer paid the whole amount
-      ledger[payer] = (ledger[payer] || 0) + A;
-    });
-    return ledger;
-  }
-
-  function render() {
-    const filtered = getFiltered();
-    const totals = computeTotals(filtered);
-
-    // Summary
-    sumTotal.textContent = formatNumber(totals.total);
-    sumMonth.textContent = "for " + (filterMonthInput.value || "—");
-    sumCount.textContent = String(filtered.length);
-    sumTopCat.textContent = topCategoryLabel(totals.byCategory);
-
-    // Table
-    tbody.innerHTML = "";
-    if (!filtered.length) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="7" class="empty">No items for this filter.</td>`;
-      tbody.appendChild(tr);
-    } else {
-      filtered.forEach(e => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${e.date}</td>
-          <td>${escapeHTML(e.desc)}</td>
-          <td>${escapeHTML(e.category)}</td>
-          <td>${escapeHTML(e.payer || "—")}</td>
-          <td>${(e.splitWith || []).map(escapeHTML).join(", ") || "—"}</td>
-          <td class="right"><strong>${formatNumber(e.amount)}</strong></td>
-          <td class="right"><button class="btn btn-sm btn-delete">Delete</button></td>
-        `;
-        // Row click -> edit (load into form and remove original)
-        tr.addEventListener("click", () => {
-          // load
-          descInput.value = e.desc;
-          amountInput.value = e.amount;
-          categorySelect.value = e.category;
-          dateInput.value = e.date;
-          payerSelect.value = e.payer || (people[0] || "");
-          // set split checkboxes
-          $$("#split-with input[type=checkbox]").forEach(cb => {
-            cb.checked = e.splitWith?.includes(cb.value) || false;
-          });
-          // remove original
-          entries = entries.filter(x => x.id !== e.id);
-          saveEntries();
-          render();
-          descInput.focus();
+  // Compute pairwise debts matrix: owes[a][b] = amount a owes b
+  function computePairwiseDebts(list) {
+    const owes = {};
+    const add = (a, b, v) => {
+      if (!owes[a]) owes[a] = {};
+      owes[a][b] = (owes[a][b] || 0) + v;
+    };
+    list.forEach(t => {
+      if (t.type === "expense") {
+        const participants = t.splitWith || [];
+        const share = t.amount / (participants.length || 1);
+        participants.forEach(p => {
+          if (p === t.payer) return; // skip self-owing
+          add(p, t.payer, share);
         });
-        // Delete button (stop row click)
-        tr.querySelector(".btn-delete").addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          entries = entries.filter(x => x.id !== e.id);
-          saveEntries();
-          render();
-        });
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Categories grid
-    catGrid.innerHTML = "";
-    const cats = Object.entries(totals.byCategory).sort((a, b) => b[1] - a[1]);
-    if (!cats.length) {
-      catGrid.innerHTML = `<p class="muted">Nothing here yet.</p>`;
-    } else {
-      cats.forEach(([cat, val]) => {
-        const row = document.createElement("div");
-        row.className = "cat-row";
-        row.innerHTML = `<span>${escapeHTML(cat)}</span><strong>${formatNumber(val)}</strong>`;
-        catGrid.appendChild(row);
-      });
-    }
-
-    // Balances grid
-    const ledger = computeBalances(filtered);
-    balancesGrid.innerHTML = "";
-    const names = Object.keys(ledger).sort((a, b) => a.localeCompare(b));
-    if (!names.length) {
-      balancesGrid.innerHTML = `<p class="muted">Add people and expenses to see balances.</p>`;
-    } else {
-      names.forEach(name => {
-        const val = ledger[name];
-        const row = document.createElement("div");
-        row.className = "balance-row";
-        const cls = val > 0 ? "balance-pos" : (val < 0 ? "balance-neg" : "");
-        row.innerHTML = `<span>${escapeHTML(name)}</span><strong class="${cls}">${formatNumber(val)}</strong>`;
-        balancesGrid.appendChild(row);
-      });
-    }
+      } else if (t.type === "payment") {
+        add(t.from, t.to, -t.amount); // payment reduces what 'from' owes to 'to'
+      }
+    });
+    // Net out A<->B
+    const names = new Set();
+    Object.keys(owes).forEach(a => { names.add(a); Object.keys(owes[a]).forEach(b => names.add(b)); });
+    const na = [...names];
+    na.forEach(a => na.forEach(b => {
+      if (a === b) return;
+      const ab = (owes[a]?.[b] || 0);
+      const ba = (owes[b]?.[a] || 0);
+      const net = ab - ba;
+      if (net > 0) {
+        if (!owes[a]) owes[a] = {};
+        if (!owes[b]) owes[b] = {};
+        owes[a][b] = net;
+        owes[b][a] = 0;
+      } else {
+        if (!owes[a]) owes[a] = {};
+        owes[a][b] = 0;
+      }
+    }));
+    return owes;
   }
 
-  function topCategoryLabel(map) {
-    const entries = Object.entries(map);
-    if (!entries.length) return "—";
-    const [name] = entries.sort((a, b) => b[1] - a[1])[0];
-    return name;
-  }
-
-  function cryptoRandomId() {
-    if (window.crypto?.getRandomValues) {
-      const arr = new Uint32Array(2);
-      window.crypto.getRandomValues(arr);
-      return arr[0].toString(36) + arr[1].toString(36);
+  // Utils
+  function rid() {
+    if (crypto?.getRandomValues) {
+      const a = new Uint32Array(2); crypto.getRandomValues(a);
+      return a[0].toString(36) + a[1].toString(36);
     }
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
-
-  function downloadBlob(blob, filename) {
+  function esc(s) {
+    return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+  }
+  function load(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  function download(name, blob) {
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 0);
+    const a = document.createElement("a"); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
   }
 })();

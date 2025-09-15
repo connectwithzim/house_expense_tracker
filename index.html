@@ -3,103 +3,114 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Expense Tracker — Split with Roommates</title>
+  <title>Group Expense Tracker</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="app-header">
+  <header class="app-header purple">
     <div class="container header-inner">
-      <h1>Expense Tracker</h1>
-      <div class="header-actions">
-        <button id="btn-export-csv" class="btn btn-dark">Export CSV</button>
-        <button id="btn-backup-json" class="btn">Backup JSON</button>
-        <label class="btn file-label">
-          Restore
-          <input id="input-restore-json" type="file" accept="application/json" class="hidden-input" />
-        </label>
-      </div>
+      <h1>Group Expense Tracker</h1>
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="add">🧾 Add Expense</button>
+        <button class="tab" data-tab="pay">💸 Pay Back</button>
+        <button class="tab" data-tab="history">📘 History</button>
+      </nav>
     </div>
   </header>
 
-  <main class="container grid">
-    <!-- People manager -->
-    <section class="card">
-      <h2>People</h2>
-      <p class="muted small">Add everyone who shares expenses with you. These names power the “Who paid” and “Split with” options.</p>
-      <form id="people-form" class="people-form">
-        <input id="people-input" placeholder="Type a name (e.g., Ali) and press Add" />
-        <button class="btn btn-dark" type="submit">Add</button>
-      </form>
-      <div id="people-list" class="people-list muted small">No people yet — add at least one.</div>
-    </section>
-
-    <!-- Add form -->
-    <section class="card">
-      <h2>Add Expense</h2>
-      <form id="add-form" class="form-grid">
-        <label class="form-field">
-          <span>Description</span>
-          <input id="desc" placeholder="e.g., Groceries at market" />
-        </label>
-        <label class="form-field">
-          <span>Amount</span>
-          <input id="amount" type="number" step="0.01" placeholder="e.g., 24.50" />
-        </label>
-
-        <label class="form-field">
-          <span>Date</span>
-          <input id="date" type="date" />
-        </label>
-
-        <label class="form-field">
-          <span>Category</span>
-          <select id="category"></select>
-        </label>
-
-        <label class="form-field">
-          <span>Who paid</span>
-          <select id="payer"></select>
-        </label>
-
-        <div class="form-field">
-          <span>Split with</span>
-          <div id="split-with" class="split-grid"></div>
-          <div class="split-actions">
-            <button id="btn-select-all" class="link-btn" type="button">Select all</button>
-            <span class="bullet">•</span>
-            <button id="btn-clear-all" class="link-btn" type="button">Clear</button>
-          </div>
-        </div>
-
-        <button class="btn btn-dark" type="submit">Add</button>
-        <button id="btn-clear-entries" class="btn" type="button">Clear All</button>
-      </form>
-
-      <div class="tips">
-        <h3>Tips</h3>
-        <ul>
-          <li>Your data saves locally in your browser.</li>
-          <li>Use Restore to import a previous backup.</li>
-          <li>Click a row to edit it; the original is removed until you re-save.</li>
-          <li>By default, the amount is split equally among everyone you select (including the payer if selected).</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- List & filters -->
-    <section class="list-area">
+  <main class="container page">
+    <!-- People manager (shown on Add tab only) -->
+    <section id="panel-add" class="panel active" role="tabpanel" aria-labelledby="tab-add">
       <div class="card">
-        <div class="filters">
-          <label>
-            <span>Search</span>
-            <input id="filter-text" placeholder="Find by text or category/person" />
+        <h2>People</h2>
+        <p class="muted small">Add your roommates. These names show up in “Who Paid” and “Split Between”.</p>
+        <form id="people-form" class="people-form">
+          <input id="people-input" placeholder="Type a name (e.g., Hanaan) and press Add" />
+          <button class="btn btn-dark" type="submit">Add</button>
+        </form>
+        <div id="people-list" class="people-list muted small">No people yet — add at least one.</div>
+      </div>
+
+      <div class="card">
+        <h2>🧾 Add New Expense</h2>
+        <form id="add-form" class="form-grid">
+          <label class="form-field">
+            <span>Amount Spent</span>
+            <input id="amount" type="number" step="0.01" placeholder="Enter amount" />
           </label>
-          <label>
-            <span>Month</span>
-            <input id="filter-month" type="month" />
+          <label class="form-field">
+            <span>Who Paid</span>
+            <select id="payer"></select>
           </label>
-          <label>
-            <span>Sort</span>
+          <label class="form-field">
+            <span>Description (optional)</span>
+            <input id="desc" placeholder="e.g., Food, Gas, etc." />
+          </label>
+          <label class="form-field">
+            <span>Date</span>
+            <input id="date" type="date" />
+          </label>
+          <div class="form-field">
+            <span>Split Between</span>
+            <div id="split-with" class="split-grid"></div>
+            <div class="split-actions">
+              <button id="btn-select-all" class="link-btn" type="button">Select all</button>
+              <span class="bullet">•</span>
+              <button id="btn-clear-all" class="link-btn" type="button">Clear</button>
+            </div>
+          </div>
+          <div class="actions-row">
+            <button class="btn btn-dark" type="submit">Add Expense</button>
+            <button id="btn-clear-entries" class="btn" type="button">Clear All Data</button>
+          </div>
+        </form>
+      </div>
+
+      <section class="cards-people" id="balances-add-view"></section>
+    </section>
+
+    <!-- Pay back panel -->
+    <section id="panel-pay" class="panel" role="tabpanel" aria-labelledby="tab-pay">
+      <div class="card">
+        <h2>💸 Record Payment</h2>
+        <form id="pay-form" class="form-grid">
+          <label class="form-field">
+            <span>Payment Amount</span>
+            <input id="pay-amount" type="number" step="0.01" placeholder="Enter payment amount" />
+          </label>
+          <label class="form-field">
+            <span>From</span>
+            <select id="pay-from"></select>
+          </label>
+          <label class="form-field">
+            <span>To</span>
+            <select id="pay-to"></select>
+          </label>
+          <label class="form-field">
+            <span>Description (optional)</span>
+            <input id="pay-desc" placeholder="e.g., Cash, bank transfer, etc." />
+          </label>
+          <label class="form-field">
+            <span>Date</span>
+            <input id="pay-date" type="date" />
+          </label>
+          <div class="actions-row">
+            <button class="btn btn-green" type="submit">Record Payment</button>
+          </div>
+        </form>
+      </div>
+
+      <section class="cards-people" id="balances-pay-view"></section>
+    </section>
+
+    <!-- History panel -->
+    <section id="panel-history" class="panel" role="tabpanel" aria-labelledby="tab-history">
+      <div class="card">
+        <h2>📘 Transaction History</h2>
+        <div class="filters top">
+          <label><span>Search</span><input id="filter-text" placeholder="Find by text/name" /></label>
+          <label><span>Month</span><input id="filter-month" type="month" /></label>
+          <label><span>Sort</span>
             <select id="sort-by">
               <option value="date-desc">Newest first</option>
               <option value="date-asc">Oldest first</option>
@@ -107,65 +118,42 @@
               <option value="amount-asc">Amount: Low → High</option>
             </select>
           </label>
+          <div class="spacer"></div>
+          <button id="btn-export-csv" class="btn btn-dark">Export CSV</button>
+          <button id="btn-backup-json" class="btn">Backup JSON</button>
+          <label class="btn file-label">Restore
+            <input id="input-restore-json" type="file" accept="application/json" class="hidden-input" />
+          </label>
+        </div>
+
+        <div class="table-card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th class="right">Amount</th>
+                <th>From</th>
+                <th>To / Split</th>
+                <th class="right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-history">
+              <tr><td colspan="7" class="empty">No transactions yet.</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div class="summary-grid">
-        <div class="summary-card">
-          <div class="summary-title">This Month</div>
-          <div id="sum-total" class="summary-value">—</div>
-          <div id="sum-month" class="summary-sub">for —</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-title">Entries</div>
-          <div id="sum-count" class="summary-value">0</div>
-          <div class="summary-sub">items</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-title">Top Category</div>
-          <div id="sum-topcat" class="summary-value">—</div>
-          <div class="summary-sub">by amount</div>
-        </div>
-      </div>
-
-      <div class="card table-card">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Category</th>
-              <th>Paid by</th>
-              <th>Split with</th>
-              <th class="right">Amount</th>
-              <th class="right">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-entries">
-            <tr><td colspan="7" class="empty">No items for this filter.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <h3>By Category</h3>
-        <div id="cat-grid" class="cat-grid">
-          <p class="muted">Nothing here yet.</p>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Balances</h3>
-        <p class="muted small">Positive = this person is owed money. Negative = this person owes money. (For the selected month & search.)</p>
-        <div id="balances" class="balances-grid">
-          <p class="muted">Add people and expenses to see balances.</p>
-        </div>
-      </div>
+      <section class="cards-people" id="balances-history-view"></section>
     </section>
   </main>
 
   <footer class="app-footer">
-    <div class="container">Built with ❤️ — your data stays in your browser.</div>
+    <div class="container">
+      <button id="btn-hard-clear" class="btn danger">Clear All Data</button>
+    </div>
   </footer>
 
   <script src="script.js" defer></script>
