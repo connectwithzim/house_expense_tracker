@@ -1,214 +1,84 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Group Expense Tracker — Single File</title>
-<style>
-:root {
-  --bg: #f5f6ff;
-  --card: #ffffff;
-  --border: #e5e7eb;
-  --text: #0f172a;
-  --muted: #6b7280;
-  --accent: #6c63ff;
-  --accent-strong: #574ee6;
-  --green: #0f9d58;
-  --shadow: 0 10px 20px rgba(17, 24, 39, 0.06);
-  --radius: 16px;
-}
-* { box-sizing: border-box; }
-html, body { height: 100%; }
-body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; color: var(--text); background: --bg; background: var(--bg); }
-.container { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
-.app-header { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--border); backdrop-filter: blur(8px); }
-.app-header.purple { background: linear-gradient(180deg, #edeaff, #ffffff 70%); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
-.header-inner h1 { font-size: 24px; margin: 0; color: #3f3a9d; }
-.tabs { display: flex; gap: 10px; }
-.tab { border: 1px solid var(--border); background: #fff; padding: 8px 12px; border-radius: 999px; cursor: pointer; box-shadow: var(--shadow); color: #4338ca; }
-.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-.tab:hover { background: #eef2ff; }
-.tab.active:hover { background: var(--accent-strong); }
-.page { padding: 20px 0 34px; }
-.panel { display: none; }
-.panel.active { display: block; }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
-.small { font-size: 12px; }
-.muted { color: var(--muted); }
-.form-grid { display: grid; gap: 12px; }
-.form-field { display: grid; gap: 6px; }
-.form-field span { font-size: 12px; color: var(--muted); }
-input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: #fff; }
-input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
-.split-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; }
-@media (max-width: 700px) { .split-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.split-item { display: flex; align-items: center; gap: 8px; }
-.actions-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn { border: 1px solid var(--border); background: #fff; padding: 10px 14px; border-radius: 12px; cursor: pointer; box-shadow: var(--shadow); font-weight: 600; }
-.btn:hover { background: #f8fafc; }
-.btn-dark { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-dark:hover { background: var(--accent-strong); color: #fff; }
-.btn-green { background: var(--green); color: #fff; border-color: var(--green); }
-.btn.danger { background: #ef4444; color: #fff; border-color: #ef4444; }
-.btn.danger:hover { background: #dc2626; }
-.link-btn { background: transparent; border: none; color: #2563eb; padding: 0; cursor: pointer; }
-.link-btn:hover { text-decoration: underline; }
-.bullet { color: var(--muted); margin: 0 6px; }
-.hidden-input { display: none; }
-.file-label { display: inline-flex; align-items: center; gap: 6px; }
-.filters.top { display: grid; grid-template-columns: 1fr 160px 200px auto auto auto; gap: 10px; align-items: end; }
-@media (max-width: 900px) { .filters.top { grid-template-columns: 1fr 1fr 1fr; } }
-.filters label { display: grid; gap: 6px; }
-.filters .spacer { flex: 1; }
-.table-card { padding: 0; overflow: hidden; border-radius: var(--radius); border: 1px solid var(--border); }
-.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.data-table thead th { text-align: left; background: #eef2ff; color: #3730a3; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-.data-table tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; }
-.data-table tbody tr:hover { background: #f9fafb; }
-.data-table .right { text-align: right; }
-.data-table .empty { text-align: center; color: var(--muted); padding: 28px 0; }
-.cards-people { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 10px; }
-@media (max-width: 900px) { .cards-people { grid-template-columns: 1fr; } }
-.person-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px; }
-.person-card h3 { margin: 0 0 6px; }
-.person-card ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-.person-card a { color: #4338ca; text-decoration: none; }
-.person-card a:hover { text-decoration: underline; }
-.stat-pos { color: #065f46; }
-.stat-neg { color: #991b1b; }
-.person-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
-.person-stats .stat-box { border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; background: #fafaff; }
-.person-stats .label { font-size: 11px; color: var(--muted); }
-.person-stats .row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
-.people-form { display: grid; grid-template-columns: 1fr 160px; gap: 10px; margin: 10px 0 8px; }
-.people-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.person-chip { display: inline-flex; align-items: center; gap: 8px; background: #eef2ff; border: 1px solid var(--border); padding: 6px 10px; border-radius: 999px; }
-.person-chip button { background: transparent; border: none; cursor: pointer; color: var(--muted); }
-.app-footer { padding: 30px 0 50px; text-align: center; font-size: 12px; color: var(--muted); }
-.banner { text-align: center; padding: 8px 0; font-size: 12px; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Group Expense Tracker</title>
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=1">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=1">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="app-header purple">
-    <div class="container header-inner">
-      <h1>Group Expense Tracker</h1>
-      <nav class="tabs" role="tablist">
-        <button class="tab active" data-tab="add">🧾 Add Expense</button>
-        <button class="tab" data-tab="pay">💸 Pay Back</button>
-        <button class="tab" data-tab="history">📘 History</button>
-      </nav>
-    </div>
-    <div id="banner" class="banner muted"></div>
-  </header>
+  <div class="container">
+    <div class="app">
+      <div class="title">Group Expense Tracker</div>
 
-  <main class="container page">
-    <section id="panel-add" class="panel active" role="tabpanel" aria-labelledby="tab-add">
-      <div class="card">
-        <h2>People</h2>
-        <p class="muted small">Add your roommates. These names show up in “Who Paid” and “Split Between”.</p>
-        <form id="people-form" class="people-form">
-          <input id="people-input" placeholder="Type a name (e.g., Hanaan) and press Add" />
-          <button class="btn btn-dark" type="submit">Add</button>
-        </form>
-        <div id="people-list" class="people-list muted small">No people yet — add at least one.</div>
+      <div class="tabs">
+        <button class="tab active" data-tab="add">💸 Add Expense</button>
+        <button class="tab" data-tab="pay">🤝 Pay Back</button>
+        <button class="tab" data-tab="history">📜 History</button>
       </div>
 
-      <div class="card">
-        <h2>🧾 Add New Expense</h2>
-        <form id="add-form" class="form-grid">
-          <label class="form-field">
-            <span>Amount Spent</span>
-            <input id="amount" type="number" step="0.01" placeholder="Enter amount" />
-          </label>
-          <label class="form-field">
-            <span>Who Paid</span>
-            <select id="payer"></select>
-          </label>
-          <label class="form-field">
-            <span>Description (optional)</span>
-            <input id="desc" placeholder="e.g., Food, Gas, etc." />
-          </label>
-          <label class="form-field">
-            <span>Date</span>
-            <input id="date" type="date" />
-          </label>
-          <div class="form-field">
-            <span>Split Between</span>
-            <div id="split-with" class="split-grid"></div>
-            <div class="split-actions">
-              <button id="btn-select-all" class="link-btn" type="button">Select all</button>
-              <span class="bullet">•</span>
-              <button id="btn-clear-all" class="link-btn" type="button">Clear</button>
+      <!-- Add -->
+      <div id="tab-add" class="tabview">
+        <div class="grid">
+          <div class="card">
+            <h3>Add New Expense</h3>
+            <div class="row"><input id="amount" type="number" step="0.01" placeholder="Amount Spent"/></div>
+            <div class="row"><select id="paidBy"></select></div>
+            <div class="row"><input id="desc" placeholder="Description (optional)"/></div>
+            <div>
+              <div style="font-size:12px;color:var(--sub);font-weight:600;">Split Between</div>
+              <div id="splitBetween" class="pillbar"></div>
             </div>
+            <div class="row"><button id="addBtn" class="primary">Add Expense</button></div>
           </div>
-          <div class="actions-row">
-            <button class="btn btn-dark" type="submit">Add Expense</button>
-            <button id="btn-clear-entries" class="btn" type="button">Clear All Data</button>
+
+          <div class="card">
+            <h3>Balances</h3>
+            <div id="balances" class="balances"></div>
           </div>
-        </form>
-      </div>
-
-      <section class="cards-people" id="balances-add-view"></section>
-    </section>
-
-    <section id="panel-pay" class="panel" role="tabpanel" aria-labelledby="tab-pay">
-      <div class="card">
-        <h2>💸 Record Payment</h2>
-        <form id="pay-form" class="form-grid">
-          <label class="form-field">
-            <span>Payment Amount</span>
-            <input id="pay-amount" type="number" step="0.01" placeholder="Enter payment amount" />
-          </label>
-          <label class="form-field">
-            <span>From</span>
-            <select id="pay-from"></select>
-          </label>
-          <label class="form-field">
-            <span>To</span>
-            <select id="pay-to"></select>
-          </label>
-          <label class="form-field">
-            <span>Description (optional)</span>
-            <input id="pay-desc" placeholder="e.g., Cash, bank transfer, etc." />
-          </label>
-          <label class="form-field">
-            <span>Date</span>
-            <input id="pay-date" type="date" />
-          </label>
-          <div class="actions-row">
-            <button class="btn btn-green" type="submit">Record Payment</button>
-          </div>
-        </form>
-      </div>
-
-      <section class="cards-people" id="balances-pay-view"></section>
-    </section>
-
-    <section id="panel-history" class="panel" role="tabpanel" aria-labelledby="tab-history">
-      <div class="card">
-        <h2>📘 Transaction History</h2>
-        <div class="filters top">
-          <label><span>Search</span><input id="filter-text" placeholder="Find by text/name" /></label>
-          <label><span>Month</span><input id="filter-month" type="month" /></label>
-          <label><span>Sort</span>
-            <select id="sort-by">
-              <option value="date-desc">Newest first</option>
-              <option value="date-asc">Oldest first</option>
-              <option value="amount-desc">Amount: High → Low</option>
-              <option value="amount-asc">Amount: Low → High</option>
-            </select>
-          </label>
-          <div class="spacer"></div>
-          <button id="btn-export-csv" class="btn btn-dark">Export CSV</button>
-          <button id="btn-backup-json" class="btn">Backup JSON</button>
-          <label class="btn file-label">Restore
-            <input id="input-restore-json" type="file" accept="application/json" class="hidden-input" />
-          </label>
         </div>
+      </div>
 
-        <div class="table-card">
-          <table class="data-table">
+      <!-- Pay -->
+      <div id="tab-pay" class="tabview" style="display:none">
+        <div class="grid">
+          <div class="card">
+            <h3>Record Payment</h3>
+            <div class="row"><input id="payAmount" type="number" step="0.01" placeholder="Payment Amount"/></div>
+            <div class="row"><select id="from"></select></div>
+            <div class="row"><select id="to"></select></div>
+            <div class="row"><input id="payDesc" placeholder="Description (optional)"/></div>
+            <div class="row"><button id="payBtn" class="primary">Record Payment</button></div>
+          </div>
+
+          <div class="card">
+            <h3>Totals by Person</h3>
+            <div id="totals" class="balances"></div>
+          </div>
+
+          <div class="card">
+            <h3>Settle Up Suggestions</h3>
+            <div id="settle"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div id="tab-history" class="tabview" style="display:none">
+        <div class="card">
+          <h3>Transaction History</h3>
+          <table id="historyTable">
             <thead>
               <tr>
                 <th>Date</th>
@@ -220,405 +90,18 @@ input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99
                 <th class="right">Action</th>
               </tr>
             </thead>
-            <tbody id="tbody-history">
-              <tr><td colspan="7" class="empty">No transactions yet.</td></tr>
-            </tbody>
+            <tbody></tbody>
           </table>
         </div>
       </div>
 
-      <section class="cards-people" id="balances-history-view"></section>
-    </section>
-  </main>
-
-  <footer class="app-footer">
-    <div class="container">
-      <button id="btn-hard-clear" class="btn danger">Clear All Data</button>
-      <div class="muted small" style="margin-top:8px">Room: <code id="room-code">default</code> — add <code>#your-room</code> to the URL and share it.</div>
+      <div class="foot">
+        <button id="clearAll" class="ghost danger">Clear ALL data (owner only)</button>
+      </div>
     </div>
-  </footer>
+  </div>
 
-  <!-- Firebase (compat) scripts, no build step needed -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
-  <script>
-  // --- Your Firebase config (from your message)
-  const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyACSX2EDDjNJC-091V4JSXeRAJUfKhhx1U",
-    authDomain: "roommates-tracker.firebaseapp.com",
-    projectId: "roommates-tracker",
-    storageBucket: "roommates-tracker.firebasestorage.app",
-    messagingSenderId: "422166522492",
-    appId: "1:422166522492:web:2f82d23de3e2540e79f7f9",
-    measurementId: "G-TBCL241CJ9"
-  };
-  </script>
-
-  <script>
-  // === App code (shared, live sync + weekly/monthly stats) ===
-  (function () {
-    const ROOM = (location.hash.replace(/^#/, "") || "default").trim();
-    document.getElementById("room-code").textContent = ROOM;
-
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-    const fmt = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
-    const esc = (s) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-
-    function monthRange(d = new Date()) {
-      const start = new Date(d.getFullYear(), d.getMonth(), 1);
-      const end = new Date(d.getFullYear(), d.getMonth()+1, 0, 23, 59, 59);
-      return [start, end];
-    }
-    function weekRange(d = new Date()) {
-      const day = d.getDay(); // 0=Sun..6=Sat
-      const mondayOffset = (day === 0 ? -6 : 1 - day); // Monday start
-      const start = new Date(d); start.setDate(d.getDate() + mondayOffset); start.setHours(0,0,0,0);
-      const end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23,59,59,999);
-      return [start, end];
-    }
-    const inRange = (dateStr, start, end) => { const t = new Date(dateStr); return t >= start && t <= end; };
-
-    let TX = [];
-    let PEOPLE = [];
-    const banner = $("#banner");
-
-    const tabs = $$(".tab");
-    const panels = $$(".panel");
-    const peopleForm = $("#people-form");
-    const peopleInput = $("#people-input");
-    const peopleList = $("#people-list");
-
-    const amountInput = $("#amount");
-    const payerSelect = $("#payer");
-    const descInput = $("#desc");
-    const dateInput = $("#date");
-    const splitWithBox = $("#split-with");
-    const addForm = $("#add-form");
-    const btnClearEntries = $("#btn-clear-entries");
-
-    const payForm = $("#pay-form");
-    const payAmount = $("#pay-amount");
-    const payFrom = $("#pay-from");
-    const payTo = $("#pay-to");
-    const payDesc = $("#pay-desc");
-    const payDate = $("#pay-date");
-
-    const filterText = $("#filter-text");
-    const filterMonth = $("#filter-month");
-    const sortBy = $("#sort-by");
-    const tbodyHistory = $("#tbody-history");
-
-    const balancesAdd = $("#balances-add-view");
-    const balancesPay = $("#balances-pay-view");
-    const balancesHist = $("#balances-history-view");
-    const btnHardClear = $("#btn-hard-clear");
-
-    // Tabs
-    tabs.forEach(btn => btn.addEventListener('click', () => {
-      tabs.forEach(b => b.classList.remove('active'));
-      panels.forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      $("#panel-" + btn.dataset.tab).classList.add('active');
-    }));
-
-    // Inputs default
-    dateInput.value = todayISO();
-    payDate.value = todayISO();
-    filterMonth.value = todayISO().slice(0,7);
-
-    // Init Firebase (compat scripts)
-    try {
-      firebase.initializeApp(FIREBASE_CONFIG);
-      banner.innerHTML = `Live sync is <strong>ON</strong> via Firebase — share this exact link with your friends.`;
-    } catch (e) {
-      banner.innerHTML = `Live sync is <strong>OFF</strong> — Firebase init failed. Check your config.`;
-    }
-    const db = firebase.firestore();
-    const txCol = db.collection("rooms").doc(ROOM).collection("transactions");
-    const pplCol = db.collection("rooms").doc(ROOM).collection("people");
-
-    // Real-time listeners
-    pplCol.orderBy("name").onSnapshot(snap => {
-      PEOPLE = snap.docs.map(d => d.get("name"));
-      renderAll();
-    });
-    txCol.orderBy("date","desc").onSnapshot(snap => {
-      TX = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderAll();
-    });
-
-    // People add/remove
-    peopleForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = (peopleInput.value||"").trim();
-      if (!name) return;
-      if (PEOPLE.includes(name)) return alert("That name already exists.");
-      await pplCol.doc(name).set({ name });
-      peopleInput.value = "";
-    });
-
-    // Add expense
-    addForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const amount = Number(amountInput.value);
-      const payer = payerSelect.value;
-      const desc = (descInput.value||"").trim();
-      const date = dateInput.value || todayISO();
-      const splitWith = $$("#split-with input[type=checkbox]").filter(cb => cb.checked).map(cb => cb.value);
-      if (!Number.isFinite(amount) || amount<=0) return alert("Enter a valid amount.");
-      if (!payer) return alert("Choose who paid.");
-      if (!splitWith.length) return alert("Pick at least one person.");
-      await txCol.add({ type: "expense", amount, desc, date, payer, splitWith, createdAt: new Date().toISOString() });
-      amountInput.value = ""; descInput.value = ""; dateInput.value = todayISO();
-      $$("#split-with input[type=checkbox]").forEach(cb => cb.checked = true);
-    });
-
-    // Record payment
-    payForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const amount = Number(payAmount.value);
-      const from = payFrom.value;
-      const to = payTo.value;
-      const desc = (payDesc.value||"").trim();
-      const date = payDate.value || todayISO();
-      if (!Number.isFinite(amount) || amount<=0) return alert("Enter a valid amount.");
-      if (!from || !to) return alert("Pick the people involved.");
-      if (from === to) return alert("From and To must be different.");
-      await txCol.add({ type: "payment", amount, desc, date, from, to, createdAt: new Date().toISOString() });
-      payAmount.value = ""; payDesc.value = ""; payDate.value = todayISO();
-    });
-
-    // Delete tx
-    document.addEventListener("click", async (e) => {
-      const btn = e.target.closest(".btn-delete");
-      if (!btn) return;
-      const id = btn.dataset.id;
-      if (!confirm("Delete this transaction?")) return;
-      await txCol.doc(id).delete();
-    });
-
-    // Clear
-    btnClearEntries.addEventListener("click", async () => {
-      if (!confirm("Delete ALL transactions?")) return;
-      const snap = await txCol.get();
-      const batch = db.batch();
-      snap.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
-    });
-    btnHardClear.addEventListener("click", async () => {
-      if (!confirm("Delete ALL people and transactions?")) return;
-      const [txSnap, pplSnap] = await Promise.all([txCol.get(), pplCol.get()]);
-      const batch = db.batch();
-      txSnap.forEach(doc => batch.delete(doc.ref));
-      pplSnap.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
-    });
-
-    // Filters + history
-    document.getElementById("filter-text").addEventListener("input", renderAll);
-    document.getElementById("filter-month").addEventListener("input", renderAll);
-    document.getElementById("sort-by").addEventListener("change", renderAll);
-
-    function filteredTX() {
-      const txt = (document.getElementById("filter-text").value || "").toLowerCase();
-      const yymm = document.getElementById("filter-month").value;
-      let start, end;
-      if (yymm && /^\d{4}-\d{2}$/.test(yymm)) {
-        const [y, m] = yymm.split("-").map(Number);
-        start = new Date(y, m - 1, 1);
-        end = new Date(y, m, 0, 23, 59, 59);
-      }
-      const list = TX.filter(t => {
-        const blob = t.type === "expense"
-          ? (t.desc + " " + t.payer + " " + (t.splitWith||[]).join(" "))
-          : (t.desc + " " + t.from + " " + t.to);
-        const inText = blob.toLowerCase().includes(txt);
-        let inMonth = true;
-        if (start && end) { const d = new Date(t.date); inMonth = d >= start && d <= end; }
-        return inText && inMonth;
-      }).sort((a,b) => {
-        const sel = document.getElementById("sort-by").value;
-        switch (sel) {
-          case "amount-asc": return a.amount - b.amount;
-          case "amount-desc": return b.amount - a.amount;
-          case "date-asc": return new Date(a.date) - new Date(b.date);
-          case "date-desc":
-          default: return new Date(b.date) - new Date(a.date);
-        }
-      });
-      return list;
-    }
-
-    function renderHistory() {
-      const list = filteredTX();
-      const tbody = document.getElementById("tbody-history");
-      tbody.innerHTML = "";
-      if (!list.length) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="7" class="empty">No transactions yet.</td>`;
-        tbody.appendChild(tr); return;
-      }
-      list.forEach(t => {
-        const tr = document.createElement("tr");
-        if (t.type === "expense") {
-          tr.innerHTML = `
-            <td>${t.date}</td>
-            <td><span class="stat-neg">Expense</span></td>
-            <td>${esc(t.desc || "")}</td>
-            <td class="right">${fmt(t.amount)}</td>
-            <td>${esc(t.payer)}</td>
-            <td>${(t.splitWith || []).map(esc).join(", ")}</td>
-            <td class="right"><button class="btn danger btn-sm btn-delete" data-id="${t.id}">Delete</button></td>`;
-        } else {
-          tr.innerHTML = `
-            <td>${t.date}</td>
-            <td><span class="stat-pos">Payment</span></td>
-            <td>${esc(t.desc || "")}</td>
-            <td class="right">${fmt(t.amount)}</td>
-            <td>${esc(t.from)}</td>
-            <td>${esc(t.to)}</td>
-            <td class="right"><button class="btn danger btn-sm btn-delete" data-id="${t.id}">Delete</button></td>`;
-        }
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Per-person stats (Monthly/Weekly Paid vs Share)
-    function personStats(name) {
-      const [mStart, mEnd] = monthRange(new Date());
-      const [wStart, wEnd] = weekRange(new Date());
-      const stats = { month: { paid: 0, share: 0 }, week: { paid: 0, share: 0 } };
-      TX.forEach(t => {
-        if (t.type !== "expense") return;
-        const n = (t.splitWith || []).length || 1;
-        const share = t.amount / n;
-        const inMonth = inRange(t.date, mStart, mEnd);
-        const inWeek = inRange(t.date, wStart, wEnd);
-        if (t.payer === name) {
-          if (inMonth) stats.month.paid += t.amount;
-          if (inWeek) stats.week.paid += t.amount;
-        }
-        if ((t.splitWith || []).includes(name)) {
-          if (inMonth) stats.month.share += share;
-          if (inWeek) stats.week.share += share;
-        }
-      });
-      return stats;
-    }
-
-    function computePairwiseDebts(list) {
-      const owes = {}; const add = (a,b,v)=>{ if(!owes[a]) owes[a]={}; owes[a][b]=(owes[a][b]||0)+v; };
-      list.forEach(t => {
-        if (t.type === "expense") {
-          const participants = t.splitWith || [];
-          const share = t.amount / (participants.length || 1);
-          participants.forEach(p => { if (p !== t.payer) add(p, t.payer, share); });
-        } else if (t.type === "payment") {
-          add(t.from, t.to, -t.amount);
-        }
-      });
-      // net
-      const names = new Set(); Object.keys(owes).forEach(a => { names.add(a); Object.keys(owes[a]).forEach(b => names.add(b)); });
-      const na = [...names];
-      na.forEach(a => na.forEach(b => {
-        if (a===b) return;
-        const ab = (owes[a]?.[b]||0), ba = (owes[b]?.[a]||0);
-        const net = ab - ba;
-        if (!owes[a]) owes[a]={}; if (!owes[b]) owes[b]={};
-        owes[a][b] = net>0?net:0; owes[b][a] = net<0?(-net):0;
-      }));
-      return owes;
-    }
-
-    function renderBalances(container) {
-      const list = filteredTX();
-      const owes = computePairwiseDebts(list);
-      const names = [...new Set(PEOPLE)];
-      container.innerHTML = "";
-      if (!names.length) { container.innerHTML = `<p class="muted">Add people to see balances.</p>`; return; }
-      names.forEach(name => {
-        const card = document.createElement("div"); card.className = "person-card";
-        const s = personStats(name);
-        const owesMe = names.filter(other => other !== name && (owes[other]?.[name] || 0) > 0);
-        const iOwe = names.filter(other => other !== name && (owes[name]?.[other] || 0) > 0);
-        const listOwesMe = owesMe.map(other => `<li><a>${esc(other)}</a> owes me: <strong class="stat-pos">${fmt(owes[other][name])}</strong></li>`).join("") || `<li class="muted">No one owes ${esc(name)}.</li>`;
-        const listIOwe = iOwe.map(other => `<li>I owe <a>${esc(other)}</a>: <strong class="stat-neg">${fmt(owes[name][other])}</strong></li>`).join("") || `<li class="muted">${esc(name)} owes no one.</li>`;
-        card.innerHTML = `
-          <h3>${esc(name)}</h3>
-          <div class="person-stats">
-            <div class="stat-box">
-              <div class="label">This Month</div>
-              <div class="row"><span>Paid</span><strong>${fmt(s.month.paid)}</strong></div>
-              <div class="row"><span>Share</span><strong>${fmt(s.month.share)}</strong></div>
-            </div>
-            <div class="stat-box">
-              <div class="label">This Week (Mon–Sun)</div>
-              <div class="row"><span>Paid</span><strong>${fmt(s.week.paid)}</strong></div>
-              <div class="row"><span>Share</span><strong>${fmt(s.week.share)}</strong></div>
-            </div>
-          </div>
-          <ul>${listOwesMe}${listIOwe}</ul>`;
-        container.appendChild(card);
-      });
-    }
-
-    function renderPeopleUI() {
-      const listEl = peopleList;
-      if (!PEOPLE.length) {
-        listEl.className = "people-list muted small";
-        listEl.textContent = "No people yet — add at least one.";
-      } else {
-        listEl.className = "people-list";
-        listEl.innerHTML = "";
-        PEOPLE.forEach(name => {
-          const chip = document.createElement("div");
-          chip.className = "person-chip";
-          chip.innerHTML = `<span>${esc(name)}</span>`;
-          const btn = document.createElement("button");
-          btn.textContent = "✕"; btn.title = "Remove";
-          btn.addEventListener("click", async () => {
-            if (!confirm(\`Remove ${name}?\`)) return;
-            await firebase.firestore().collection("rooms").doc(ROOM).collection("people").doc(name).delete();
-          });
-          chip.appendChild(btn);
-          listEl.appendChild(chip);
-        });
-      }
-      [$("#payer"), $("#pay-from"), $("#pay-to")].forEach(sel => sel.innerHTML = "");
-      PEOPLE.forEach(name => {
-        [$("#payer"), $("#pay-from"), $("#pay-to")].forEach(sel => {
-          const opt = document.createElement("option"); opt.value = name; opt.textContent = name; sel.appendChild(opt);
-        });
-      });
-      const box = $("#split-with");
-      box.innerHTML = "";
-      if (!PEOPLE.length) {
-        box.innerHTML = `<p class="muted small">Add people first.</p>`;
-      } else {
-        PEOPLE.forEach(name => {
-          const id = "p_" + name.replace(/\s+/g, "_");
-          const label = document.createElement("label");
-          label.className = "split-item";
-          label.innerHTML = `<input id="${id}" type="checkbox" value="${esc(name)}"> <span>${esc(name)}</span>`;
-          box.appendChild(label);
-        });
-        $$("#split-with input[type=checkbox]").forEach(cb => cb.checked = true);
-      }
-    }
-
-    function renderAll() {
-      renderPeopleUI();
-      renderHistory();
-      renderBalances(document.getElementById("balances-add-view"));
-      renderBalances(document.getElementById("balances-pay-view"));
-      renderBalances(document.getElementById("balances-history-view"));
-    }
-
-    renderAll();
-  })();
-  </script>
+  <!-- App script -->
+  <script type="module" src="script.js"></script>
 </body>
 </html>
